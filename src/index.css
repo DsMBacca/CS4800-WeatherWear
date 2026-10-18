@@ -1,0 +1,38 @@
+:root {
+  --text: #3d4a5c;
+  --text-h: #152033;
+  --text-muted: #7a8799;
+  --bg: #e8f1f8;
+  --surface: #ffffff;
+  --border: #c5d4e3;
+  --empty: #f0f5fa;
+  --accent: #1f6f8b;
+  --accent-hover: #185a70;
+
+  font-family: 'Segoe UI', Candara, 'Gill Sans', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--text);
+  background:
+    radial-gradient(ellipse 120% 80% at 50% -20%, #b8d4e8 0%, transparent 55%),
+    linear-gradient(180deg, #dceaf4 0%, var(--bg) 40%, #f2f6f9 100%);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100svh;
+}
+
+#root {
+  min-height: 100svh;
+}
