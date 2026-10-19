@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { getRecommendations } from './utils/recommendations'
 import './App.css'
 
 function getWeatherCondition(code) {
@@ -104,6 +105,7 @@ function App() {
   const [destination, setDestination] = useState('')
   const [currentWeather, setCurrentWeather] = useState(null)
   const [destinationWeather, setDestinationWeather] = useState(null)
+  const [recommendations, setRecommendations] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -126,6 +128,7 @@ function App() {
     setError('')
     setCurrentWeather(null)
     setDestinationWeather(null)
+    setRecommendations(null)
 
     try {
       const [currentData, destinationData] = await Promise.all([
@@ -134,6 +137,7 @@ function App() {
       ])
       setCurrentWeather(currentData)
       setDestinationWeather(destinationData)
+      setRecommendations(getRecommendations(currentData, destinationData))
     } catch (err) {
       setError(
         err instanceof Error
@@ -211,7 +215,22 @@ function App() {
 
       <section className="recommendations" aria-label="Clothing recommendations">
         <h2>What Should I Wear?</h2>
-        <div className="recommendations-body" />
+        {recommendations ? (
+          <div className="recommendations-body recommendations-body--filled">
+            {recommendations.comparison && (
+              <p className="recommendations-comparison">
+                {recommendations.comparison}
+              </p>
+            )}
+            <ul className="recommendations-list">
+              {recommendations.items.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <div className="recommendations-body" />
+        )}
       </section>
     </div>
   )
