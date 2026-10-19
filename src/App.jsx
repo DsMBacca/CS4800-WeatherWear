@@ -184,10 +184,6 @@ function App() {
     }
   }, [])
 
-  function handleUseMyLocation() {
-    // Geolocation will be wired up later
-  }
-
   async function handleCompareWeather(event) {
     event.preventDefault()
 
@@ -287,24 +283,14 @@ function App() {
       <form className="location-form" onSubmit={handleCompareWeather}>
         <div className="field-group">
           <label htmlFor="current-location">Current Location</label>
-          <div className="field-row">
-            <input
-              id="current-location"
-              type="text"
-              placeholder="Enter your current location"
-              value={currentLocation}
-              onChange={(event) => setCurrentLocation(event.target.value)}
-              disabled={loading}
-            />
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={handleUseMyLocation}
-              disabled={loading}
-            >
-              Use My Location
-            </button>
-          </div>
+          <input
+            id="current-location"
+            type="text"
+            placeholder="Enter your current location"
+            value={currentLocation}
+            onChange={(event) => setCurrentLocation(event.target.value)}
+            disabled={loading}
+          />
         </div>
 
         <div className="field-group">
