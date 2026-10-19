@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { getRecommendations } from './utils/recommendations'
 import './App.css'
 
@@ -46,6 +46,41 @@ function formatPlace(location) {
   if (!location) return ''
   const parts = [location.city, location.region].filter(Boolean)
   return parts.join(', ')
+}
+
+function formatSavedDate(value) {
+  if (!value) return 'Unknown date'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Unknown date'
+  return date.toLocaleString(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  })
+}
+
+function buildRecommendationArray(recommendations) {
+  if (!recommendations) return []
+  const items = [...recommendations.items]
+  if (recommendations.comparison) {
+    items.unshift(recommendations.comparison)
+  }
+  return items
+}
+
+async function fetchRecentComparisons() {
+  const response = await fetch('/api/comparisons')
+  let data
+  try {
+    data = await response.json()
+  } catch {
+    data = null
+  }
+
+  if (!response.ok) {
+    throw new Error(data?.error || 'Failed to load recent comparisons.')
+  }
+
+  return Array.isArray(data) ? data : []
 }
 
 function WeatherCard({ title, data }) {
@@ -108,6 +143,46 @@ function App() {
   const [recommendations, setRecommendations] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saveMessage, setSaveMessage] = useState('')
+  const [saveError, setSaveError] = useState('')
+  const [recentComparisons, setRecentComparisons] = useState([])
+  const [recentLoading, setRecentLoading] = useState(true)
+  const [recentError, setRecentError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadRecentComparisons() {
+      setRecentLoading(true)
+      setRecentError('')
+
+      try {
+        const comparisons = await fetchRecentComparisons()
+        if (!cancelled) {
+          setRecentComparisons(comparisons)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setRecentError(
+            err instanceof Error
+              ? err.message
+              : 'Failed to load recent comparisons.',
+          )
+        }
+      } finally {
+        if (!cancelled) {
+          setRecentLoading(false)
+        }
+      }
+    }
+
+    loadRecentComparisons()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   function handleUseMyLocation() {
     // Geolocation will be wired up later
@@ -126,6 +201,8 @@ function App() {
 
     setLoading(true)
     setError('')
+    setSaveMessage('')
+    setSaveError('')
     setCurrentWeather(null)
     setDestinationWeather(null)
     setRecommendations(null)
@@ -148,6 +225,57 @@ function App() {
       setLoading(false)
     }
   }
+
+  async function handleSaveComparison() {
+    if (!currentWeather || !destinationWeather || !recommendations) {
+      return
+    }
+
+    setSaving(true)
+    setSaveMessage('')
+    setSaveError('')
+
+    try {
+      const response = await fetch('/api/comparisons', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          currentLocation: formatPlace(currentWeather.location),
+          destinationLocation: formatPlace(destinationWeather.location),
+          currentTemperature: currentWeather.weather.temperature,
+          destinationTemperature: destinationWeather.weather.temperature,
+          recommendations: buildRecommendationArray(recommendations),
+        }),
+      })
+
+      let data
+      try {
+        data = await response.json()
+      } catch {
+        data = null
+      }
+
+      if (!response.ok) {
+        throw new Error(data?.error || 'Failed to save comparison.')
+      }
+
+      setSaveMessage('Comparison saved successfully.')
+      const comparisons = await fetchRecentComparisons()
+      setRecentComparisons(comparisons)
+      setRecentError('')
+    } catch (err) {
+      setSaveError(
+        err instanceof Error ? err.message : 'Failed to save comparison.',
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const canSave =
+    Boolean(currentWeather && destinationWeather && recommendations) && !loading
 
   return (
     <div className="app">
@@ -230,6 +358,78 @@ function App() {
           </div>
         ) : (
           <div className="recommendations-body" />
+        )}
+
+        {canSave && (
+          <div className="save-comparison">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleSaveComparison}
+              disabled={saving}
+            >
+              {saving ? 'Saving…' : 'Save Comparison'}
+            </button>
+            {saveMessage && (
+              <p className="status-message status-message--success" role="status">
+                {saveMessage}
+              </p>
+            )}
+            {saveError && (
+              <p className="status-message status-message--error" role="alert">
+                {saveError}
+              </p>
+            )}
+          </div>
+        )}
+      </section>
+
+      <section className="recent-comparisons" aria-label="Recent comparisons">
+        <h2>Recent Comparisons</h2>
+        {recentLoading && (
+          <p className="status-message" role="status">
+            Loading recent comparisons…
+          </p>
+        )}
+        {!recentLoading && recentError && (
+          <p className="status-message status-message--error" role="alert">
+            {recentError}
+          </p>
+        )}
+        {!recentLoading && !recentError && recentComparisons.length === 0 && (
+          <p className="status-message">
+            No saved comparisons yet. Compare two locations and save one to see
+            it here.
+          </p>
+        )}
+        {!recentLoading && !recentError && recentComparisons.length > 0 && (
+          <ul className="recent-list">
+            {recentComparisons.map((comparison) => (
+              <li key={comparison.id} className="recent-item">
+                <p className="recent-route">
+                  <span>{comparison.currentLocation}</span>
+                  <span className="recent-arrow" aria-hidden="true">
+                    →
+                  </span>
+                  <span>{comparison.destinationLocation}</span>
+                </p>
+                <dl className="recent-details">
+                  <div>
+                    <dt>Current temp</dt>
+                    <dd>{comparison.currentTemperature}&deg;F</dd>
+                  </div>
+                  <div>
+                    <dt>Destination temp</dt>
+                    <dd>{comparison.destinationTemperature}&deg;F</dd>
+                  </div>
+                  <div>
+                    <dt>Saved</dt>
+                    <dd>{formatSavedDate(comparison.createdAt)}</dd>
+                  </div>
+                </dl>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
     </div>
